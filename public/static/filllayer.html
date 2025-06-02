@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <title>FillLayer图层</title>
+    <style type="text/css">
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        #allmap {
+            height: 100%;
+            width: 100%;
+            z-index: 0;
+        }
+
+        ul li {
+            list-style: none;
+        }
+
+        .btn-wrap {
+            z-index: 999;
+            position: fixed;
+            bottom: 3.5rem;
+            margin-left: 3rem;
+            padding: 1rem 1rem;
+            border-radius: .25rem;
+            background-color: #fff;
+            box-shadow: 0 2px 6px 0 rgba(27, 142, 236, 0.5);
+        }
+
+        .btn {
+            width: 75px;
+            height: 30px;
+            float: left;
+            background-color: #fff;
+            color: rgba(27, 142, 236, 1);
+            font-size: 14px;
+            border: 1px solid rgba(27, 142, 236, 1);
+            border-radius: 5px;
+            margin: 0 5px;
+            text-align: center;
+            line-height: 30px;
+        }
+
+        .btn:hover {
+            background-color: rgba(27, 142, 236, 0.8);
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="allmap"></div>
+    <script type="text/javascript"
+        src="//api.map.baidu.com/api?type=webgl&v=1.0&ak=glr0FffRlRIgn6u74hx94KhEQk3rQe5t"></script>
+    <script src="https://mapv.baidu.com/gl/examples/static/common.js"></script>
+
+    <script type="text/javascript">
+        var map = new BMapGL.Map('allmap');
+        var point = new BMapGL.Point(113.3501, 23.1008);
+        map.centerAndZoom(point, 11);
+        map.enableScrollWheelZoom(true);
+        map.setMapStyleV2({ styleJson: whiteStyle });
+
+        var fillLayer = null;
+        var selectedFeature = null;
+
+        function addFillLayer() {
+            fetch("shenzhen.json").then(res => {
+                return res.json();
+            }).then(testFillData => {
+                if (!fillLayer) {
+                    fillLayer = new BMapGL.FillLayer({
+                        crs: 'GCJ02',
+                        enablePicked: true,
+                        autoSelect: false,
+                        pickWidth: 30,
+                        pickHeight: 30,
+                        selectedColor: 'green',
+                        border: true,
+                        style: {
+                            fillColor: ['case', ['boolean', ['feature-state', 'picked'], false], 'red',
+                                ['match', ['get', 'name'],
+                                    '福田区', '#ce4848',
+                                    '罗湖区', 'blue',
+                                    '盐田区', '#d35a7f',
+                                    '南山区', '#6704ff',
+                                    '宝安区', '#fd8b64',
+                                    '龙岗区', 'orange',
+                                    '龙华区', '#ce4848',
+                                    '坪山区', 'blue',
+                                    '光明区', '#6704ff',
+                                    '大鹏新区', '#fd8b64',
+                                    '#000' // 默认颜色
+                                ]
+                            ],
+                            fillOpacity: 0.3,
+                            strokeWeight: 1,
+                            strokeColor: 'blue',
+                        },
+                        label: {
+                            show: true,
+                            field: 'name',
+                            style: {
+                                color: '#000',
+                                fontSize: 20,
+                                fontWeight: 'bold',
+                                textAlign: 'center',
+                                offset: [0, 0]
+                            }
+                        }
+                    });
+
+                    fillLayer.addEventListener('click', function (e) {
+                        if (e.value.dataIndex !== -1 && e.value.dataItem) {
+                            // 检查是否已经选中了当前点击的区域
+                            if (selectedFeature === e.value.dataIndex) {
+                                // 如果已经选中则取消选择
+                                selectedFeature = null;
+                                fillLayer.updateState(e.value.dataIndex, { picked: false });
+                            } else {
+                                // 如果选中了其他区域则取消选中
+                                if (selectedFeature !== null) {
+                                    fillLayer.updateState(selectedFeature, { picked: false });
+                                }
+                                // 选中当前区域
+                                selectedFeature = e.value.dataIndex;
+                                fillLayer.updateState(e.value.dataIndex, { picked: true });
+                            }
+                            console.log('Selected district:', e.value.dataItem.properties);
+                            // 发送消息给父页面
+                            const { districtId, totalDangercount } = e.value.dataItem.properties;
+                            window.parent.postMessage({
+                                adcode: e.value.dataItem.properties.adcode,
+                                districtName: e.value.dataItem.properties.name
+                            }, '*');
+                        }
+                    });
+                    map.addNormalLayer(fillLayer);
+                    fillLayer.setData(testFillData);
+                }
+            });
+        }
+
+        addFillLayer();
+    </script>
+</body>
+
+</html>
